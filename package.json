@@ -1,0 +1,33 @@
+{
+  "name": "salary-credit-temporal",
+  "version": "1.0.0",
+  "description": "Salary credit system using Node.js, Express, MongoDB, Temporal.io, Nodemailer, and JWT auth",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "worker": "node src/temporal/worker.js",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "@temporalio/client": "^1.9.2",
+    "@temporalio/worker": "^1.9.2",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-async-errors": "^3.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.1",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.14",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
