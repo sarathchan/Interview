@@ -37,7 +37,8 @@ const swaggerDefinition = {
         properties: {
           userId: {
             type: 'string',
-            example: 'user-123'
+            description: 'MongoDB ObjectId of the user (24 hex characters). Get from seeded users or signup.',
+            example: '507f1f77bcf86cd799439011'
           },
           email: {
             type: 'string',
@@ -103,7 +104,8 @@ const swaggerDefinition = {
           },
           message: {
             type: 'string',
-            example: 'Validation error'
+            description: 'Server error message',
+            example: 'Salary already credited for this user and month'
           }
         }
       }

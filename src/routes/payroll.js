@@ -1,8 +1,10 @@
 const express = require('express');
 const { Connection, Client } = require('@temporalio/client');
+const { rootCause } = require('@temporalio/common');
 
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
+const Salary = require('../models/Salary');
 
 const router = express.Router();
 
@@ -19,6 +21,9 @@ function validatePayload(body) {
 
   if (!userId || typeof userId !== 'string') {
     return 'userId is required and must be a string';
+  }
+  if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
+    return 'userId must be a valid MongoDB ObjectId (24 hex characters)';
   }
   if (!email || typeof email !== 'string') {
     return 'email is required and must be a string';
@@ -54,41 +59,19 @@ function validatePayload(body) {
  *             $ref: '#/components/schemas/CreditSalaryRequest'
  *     responses:
  *       201:
- *         description: Salary credited successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CreditSalaryResponse'
+ *         description: Salary credited
  *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Validation error or workflow failed
  *       401:
- *         description: Unauthorized (missing or invalid token)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Authentication required
  *       403:
- *         description: Forbidden (insufficient role)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Insufficient permissions (HR or ADMIN required)
+ *       404:
+ *         description: User not found
  *       409:
- *         description: Salary for this user and month already credited
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Salary already credited for this user and month
  *       503:
- *         description: Temporal service unavailable
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Payroll service temporarily unavailable
  */
 router.post(
   '/credit-salary',
@@ -104,10 +87,20 @@ router.post(
 
       // 2. Ensure the user exists
       const user = await User.findById(userId).lean();
+      console.log(user,userId);
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
+        });
+      }
+
+      // 3. Pre-check: salary already credited for this user+month
+      const existing = await Salary.findOne({ userId, month }).lean();
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: 'Salary already credited for this user and month'
         });
       }
 
@@ -150,6 +143,14 @@ router.post(
         return res.status(409).json({
           success: false,
           message: 'Salary already credited for this month'
+        });
+      }
+      // Extract root cause message from workflow/activity failure
+      const message = rootCause(err) || err.cause?.message || err.message;
+      if (message) {
+        return res.status(400).json({
+          success: false,
+          message
         });
       }
       return next(err);

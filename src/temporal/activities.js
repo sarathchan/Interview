@@ -1,3 +1,5 @@
+const { ApplicationFailure } = require('@temporalio/common');
+
 const Salary = require('../models/Salary');
 const { sendSalaryCreditedEmail } = require('../services/emailService');
 
@@ -19,9 +21,7 @@ async function saveSalaryToMongoDB(payload) {
     const netSalary = grossSalary - deductions;
 
     if (netSalary < 0) {
-      const err = new Error('Net salary cannot be negative');
-      err.name = 'NetSalaryValidationError';
-      throw err;
+      throw ApplicationFailure.nonRetryable('Net salary cannot be negative');
     }
 
     const doc = new Salary({
@@ -46,7 +46,21 @@ async function saveSalaryToMongoDB(payload) {
     };
   } catch (err) {
     console.error('Activity saveSalaryToMongoDB failed:', err);
-    throw err;
+
+    // Duplicate key (salary already credited) - non-retryable
+    if (err.code === 11000) {
+      throw ApplicationFailure.nonRetryable(
+        'Salary already credited for this user and month'
+      );
+    }
+
+    // Validation/business errors - non-retryable
+    if (err.name === 'ValidationError' || err.name === 'NetSalaryValidationError') {
+      throw ApplicationFailure.nonRetryable(err.message || 'Validation failed');
+    }
+
+    // Mongo connection etc - retryable
+    throw ApplicationFailure.retryable(err.message || 'Database error');
   }
 }
 
@@ -55,7 +69,10 @@ async function sendSalaryEmail({ email, month, netSalary }) {
     await sendSalaryCreditedEmail({ email, month, netSalary });
   } catch (err) {
     console.error('Activity sendSalaryEmail failed:', err);
-    throw err;
+    // SMTP/email failures are often transient - retryable
+    throw ApplicationFailure.retryable(
+      err.message || 'Failed to send salary notification email'
+    );
   }
 }
 

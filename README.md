@@ -23,7 +23,15 @@ The main flow:
 npm install
 ```
 
-### 3. Environment Variables
+### 3. Seed the Database
+
+```bash
+npm run seed
+```
+
+This creates HR, Admin, and Employee users (password: `Password123!`) plus sample salary records. Use these to test login and the credit-salary flow.
+
+### 4. Environment Variables
 
 All required variables are listed in `.env.example`. Create a `.env` file in the project root and fill in values:
 
@@ -42,7 +50,7 @@ SMTP_PASS=your-smtp-pass
 EMAIL_FROM=hr@yourcompany.com
 ```
 
-### 4. Running Temporal Server
+### 5. Running Temporal Server
 
 If you don't already have Temporal running, you can start a local Temporal server using Docker (see Temporal docs) or the temporal CLI:
 
@@ -52,7 +60,7 @@ temporal server start-dev
 
 This will expose Temporal at `localhost:7233` by default.
 
-### 5. Start the Temporal Worker
+### 6. Start the Temporal Worker
 
 In one terminal:
 
@@ -64,7 +72,7 @@ This starts a Temporal worker on task queue `salary-queue` which runs:
 - Workflow: `creditSalaryWorkflow`
 - Activities: `saveSalaryToMongoDB`, `sendSalaryEmail`
 
-### 6. Start the API Server
+### 7. Start the API Server
 
 In another terminal:
 
@@ -74,7 +82,7 @@ npm run dev
 
 The Express API will listen on **port 3000**.
 
-### 7. Authentication (JWT)
+### 8. Authentication (JWT)
 
 The `POST /api/payroll/credit-salary` endpoint requires a **Bearer JWT** with a payload that includes a `role` field equal to `HR` or `ADMIN`.
 
@@ -89,7 +97,7 @@ Example payload for testing:
 
 Sign it with the `JWT_SECRET` from your `.env`.
 
-### 8. API: Credit Salary
+### 9. API: Credit Salary
 
 - **Endpoint**: `POST /api/payroll/credit-salary`
 - **Auth**: Bearer JWT, `role` = `HR` or `ADMIN`
@@ -125,7 +133,7 @@ Sign it with the `JWT_SECRET` from your `.env`.
 
 If a salary for the same `userId` and `month` has already been processed, Temporal will reject a new workflow with the same ID and the API will respond with **409 Conflict**.
 
-### 9. Sample curl Request
+### 10. Sample curl Request
 
 Assuming you have a JWT (with `role` = `HR` or `ADMIN`) stored in `TOKEN`:
 
