@@ -120,7 +120,7 @@ services:
       SMTP_PORT: 1025
       SMTP_USER: ""
       SMTP_PASS: ""
-      EMAIL_FROM: hr@example.com
+      EMAIL_FROM: sarathchan20@gmail.com
     restart: unless-stopped
 
 volumes:

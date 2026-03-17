@@ -12,7 +12,7 @@ const SEED_USERS = [
   { name: 'HR User', email: 'hr@example.com', role: 'HR' },
   { name: 'Admin User', email: 'admin@example.com', role: 'ADMIN' },
   { name: 'Employee User', email: 'employee@example.com', role: 'EMPLOYEE' },
-  { name: 'John Doe', email: 'john@example.com', role: 'EMPLOYEE' },
+  { name: 'sarath chan', email: 'sarathchan20@gmail.com', role: 'EMPLOYEE' },
   { name: 'Jane Smith', email: 'jane@example.com', role: 'EMPLOYEE' }
 ];
 

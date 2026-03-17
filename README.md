@@ -44,11 +44,11 @@ npm run docker:up
 
 ### Seeded Users
 
-| Email               | Password   | Role     |
-|---------------------|------------|----------|
-| hr@example.com      | Password123! | HR     |
-| admin@example.com   | Password123! | ADMIN  |
-| employee@example.com| Password123! | EMPLOYEE |
+| Email                 | Password   | Role     |
+|---------------------  |------------|----------|
+| hr@example.com        | Password123! | HR     |
+| admin@example.com     | Password123! | ADMIN  |
+| sarathchan20@gmail.com| Password123! | EMPLOYEE |
 
 ### Stop Services
 
