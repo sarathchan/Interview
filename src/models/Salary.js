@@ -14,7 +14,7 @@ const salarySchema = new mongoose.Schema(
     month: {
       type: String,
       required: true,
-      match: /^\d{4}-\d{2}$/ // YYYY-MM
+      match: /^\d{4}-\d{2}$/
     },
     basic: {
       type: Number,

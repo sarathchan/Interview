@@ -3,8 +3,6 @@ const { ApplicationFailure } = require('@temporalio/common');
 const Salary = require('../models/Salary');
 const { sendSalaryCreditedEmail } = require('../services/emailService');
 
-// These are real activity implementations that will run in the worker process.
-
 async function saveSalaryToMongoDB(payload) {
   try {
     const {
@@ -47,19 +45,16 @@ async function saveSalaryToMongoDB(payload) {
   } catch (err) {
     console.error('Activity saveSalaryToMongoDB failed:', err);
 
-    // Duplicate key (salary already credited) - non-retryable
     if (err.code === 11000) {
       throw ApplicationFailure.nonRetryable(
         'Salary already credited for this user and month'
       );
     }
 
-    // Validation/business errors - non-retryable
     if (err.name === 'ValidationError' || err.name === 'NetSalaryValidationError') {
       throw ApplicationFailure.nonRetryable(err.message || 'Validation failed');
     }
 
-    // Mongo connection etc - retryable
     throw ApplicationFailure.retryable(err.message || 'Database error');
   }
 }
@@ -69,7 +64,6 @@ async function sendSalaryEmail({ email, month, netSalary }) {
     await sendSalaryCreditedEmail({ email, month, netSalary });
   } catch (err) {
     console.error('Activity sendSalaryEmail failed:', err);
-    // SMTP/email failures are often transient - retryable
     throw ApplicationFailure.retryable(
       err.message || 'Failed to send salary notification email'
     );

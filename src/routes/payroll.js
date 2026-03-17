@@ -85,9 +85,7 @@ router.post(
 
       const { userId, email, month } = req.body;
 
-      // 2. Ensure the user exists
       const user = await User.findById(userId).lean();
-      console.log(user,userId);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -95,7 +93,6 @@ router.post(
         });
       }
 
-      // 3. Pre-check: salary already credited for this user+month
       const existing = await Salary.findOne({ userId, month }).lean();
       if (existing) {
         return res.status(409).json({
@@ -145,7 +142,6 @@ router.post(
           message: 'Salary already credited for this month'
         });
       }
-      // Extract root cause message from workflow/activity failure
       const message = rootCause(err) || err.cause?.message || err.message;
       if (message) {
         return res.status(400).json({

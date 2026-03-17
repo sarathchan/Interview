@@ -29,7 +29,6 @@ async function creditSalaryWorkflow(payload) {
 
     return { status: 'CREDITED', netSalary };
   } catch (err) {
-    // Preserve root cause: activity failure puts real message in cause
     const message = err.cause?.message || err.message || 'Credit salary workflow failed';
     throw ApplicationFailure.nonRetryable(message, 'CreditSalaryWorkflowFailure');
   }

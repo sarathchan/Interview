@@ -13,24 +13,17 @@ const swaggerSpec = require('./swagger');
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 app.use(morgan('dev'));
-
-// Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/users', usersRoutes);
 
-// Global error handler - return only clean server response
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
 
-  // Mongoose CastError (invalid ObjectId, etc) - do not expose internals
   if (err.name === 'CastError') {
     return res.status(400).json({
       success: false,

@@ -1,27 +1,104 @@
-## Salary Credit System with Temporal.io
+# Salary Credit System with Temporal.io
 
-This project implements a salary credit system using **Node.js**, **Express**, **MongoDB (Mongoose)**, **Temporal.io**, **Nodemailer**, and **JWT** authentication.
+A salary credit system built with **Node.js**, **Express**, **MongoDB**, **Temporal.io**, **Nodemailer**, and **JWT** authentication.
 
-The main flow:
-- **HR/ADMIN** calls `POST /api/payroll/credit-salary`
-- API validates payload and JWT (HR/ADMIN role)
-- API starts Temporal workflow `creditSalaryWorkflow`
-- Workflow activities:
-  - Save salary record to MongoDB
-  - Send email notification to employee
+## Overview
 
-### 1. Prerequisites
+**Flow:**
+1. **HR** or **ADMIN** logs in and receives a JWT.
+2. HR/ADMIN calls `POST /api/payroll/credit-salary` with salary details.
+3. The API validates the payload and starts the Temporal workflow `creditSalaryWorkflow`.
+4. The workflow runs two activities:
+   - Save salary record to MongoDB
+   - Send email notification to the employee
 
+---
+
+## Quick Start (Docker)
+
+Run everything locally with one command.
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+
+### Start All Services
+
+```bash
+docker compose up -d --build
+```
+
+Or use the npm script:
+
+```bash
+npm run docker:up
+```
+
+### Local URLs
+
+| Service       | URL                           |
+|---------------|-------------------------------|
+| API           | http://localhost:3000         |
+| Swagger Docs  | http://localhost:3000/api-docs|
+| Temporal UI   | http://localhost:8233         |
+| MailHog (emails) | http://localhost:8025      |
+
+### Seeded Users
+
+| Email               | Password   | Role     |
+|---------------------|------------|----------|
+| hr@example.com      | Password123! | HR     |
+| admin@example.com   | Password123! | ADMIN  |
+| employee@example.com| Password123! | EMPLOYEE |
+
+### Stop Services
+
+```bash
+docker compose down
+```
+
+To also remove data volumes:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Manual Setup
+
+For development without Docker.
+
+### Prerequisites
 - Node.js 18+
-- MongoDB running locally or connection URI
-- Temporal server running (e.g. via Docker)
-- SMTP credentials (for Nodemailer)
+- MongoDB (local or connection URI)
+- Temporal server (e.g. `temporal server start-dev` or Docker)
+- SMTP credentials, or use [MailHog](https://github.com/mailhog/MailHog) for local testing
 
-### 2. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
+
+### 2. Environment Variables
+
+Copy `.env.example` to `.env` and fill in values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable         | Description                    | Example                           |
+|------------------|--------------------------------|-----------------------------------|
+| PORT             | API server port                | 3000                              |
+| MONGO_URI        | MongoDB connection string      | mongodb://localhost:27017/salary_credit_db |
+| TEMPORAL_ADDRESS | Temporal server address         | localhost:7233                    |
+| JWT_SECRET       | Secret for signing JWTs        | your-secret-key                   |
+| SMTP_HOST        | SMTP host (or `localhost` for MailHog) | smtp.gmail.com            |
+| SMTP_PORT        | SMTP port (1025 for MailHog)   | 587                               |
+| SMTP_USER        | SMTP username                  | -                                 |
+| SMTP_PASS        | SMTP password                  | -                                 |
+| EMAIL_FROM       | Sender email address           | hr@yourcompany.com                |
 
 ### 3. Seed the Database
 
@@ -29,84 +106,82 @@ npm install
 npm run seed
 ```
 
-This creates HR, Admin, and Employee users (password: `Password123!`) plus sample salary records. Use these to test login and the credit-salary flow.
+### 4. Run the Services
 
-### 4. Environment Variables
-
-All required variables are listed in `.env.example`. Create a `.env` file in the project root and fill in values:
-
-```bash
-PORT=3000
-MONGO_URI=mongodb://localhost:27017/salary_credit_db
-
-TEMPORAL_ADDRESS=localhost:7233
-
-JWT_SECRET=change_me_jwt_secret
-
-SMTP_HOST=your-smtp-host
-SMTP_PORT=587
-SMTP_USER=your-smtp-user
-SMTP_PASS=your-smtp-pass
-EMAIL_FROM=hr@yourcompany.com
-```
-
-### 5. Running Temporal Server
-
-If you don't already have Temporal running, you can start a local Temporal server using Docker (see Temporal docs) or the temporal CLI:
-
-```bash
-temporal server start-dev
-```
-
-This will expose Temporal at `localhost:7233` by default.
-
-### 6. Start the Temporal Worker
-
-In one terminal:
-
+**Terminal 1 – Temporal worker:**
 ```bash
 npm run worker
 ```
 
-This starts a Temporal worker on task queue `salary-queue` which runs:
-- Workflow: `creditSalaryWorkflow`
-- Activities: `saveSalaryToMongoDB`, `sendSalaryEmail`
-
-### 7. Start the API Server
-
-In another terminal:
-
+**Terminal 2 – API server:**
 ```bash
 npm run dev
 ```
 
-The Express API will listen on **port 3000**.
+---
 
-### 8. Authentication (JWT)
+## Authentication
 
-The `POST /api/payroll/credit-salary` endpoint requires a **Bearer JWT** with a payload that includes a `role` field equal to `HR` or `ADMIN`.
+### Login
 
-Example payload for testing:
+Get a JWT by logging in:
+
+**POST** `/api/auth/login`
 
 ```json
 {
-  "sub": "hr-user-1",
-  "role": "HR"
+  "email": "hr@example.com",
+  "password": "Password123!"
 }
 ```
 
-Sign it with the `JWT_SECRET` from your `.env`.
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "...",
+    "name": "HR User",
+    "email": "hr@example.com",
+    "role": "HR"
+  }
+}
+```
 
-### 9. API: Credit Salary
+Use the `token` in the `Authorization` header:
+```
+Authorization: Bearer <token>
+```
 
-- **Endpoint**: `POST /api/payroll/credit-salary`
-- **Auth**: Bearer JWT, `role` = `HR` or `ADMIN`
-- **Body**:
+### Protected Endpoints
+
+- `POST /api/payroll/credit-salary` — requires **HR** or **ADMIN** role
+
+---
+
+## API: Credit Salary
+
+**Endpoint:** `POST /api/payroll/credit-salary`  
+**Auth:** Bearer JWT (role: HR or ADMIN)
+
+### Request Body
+
+| Field        | Type   | Required | Description                          |
+|--------------|--------|----------|--------------------------------------|
+| userId       | string | Yes      | MongoDB ObjectId (24 hex characters) |
+| email        | string | Yes      | Employee email                       |
+| month        | string | Yes      | Format: `YYYY-MM` (e.g. `2026-03`)   |
+| basic        | number | Yes      | Basic salary                         |
+| hra          | number | Yes      | HRA                                  |
+| allowance    | number | Yes      | Allowances                           |
+| deductions   | number | Yes      | Deductions                           |
+
+### Example Request
 
 ```json
 {
-  "userId": "user-123",
-  "email": "user@example.com",
+  "userId": "64f123abcde4567890fedcba",
+  "email": "employee@example.com",
   "month": "2026-03",
   "basic": 50000,
   "hra": 20000,
@@ -115,15 +190,12 @@ Sign it with the `JWT_SECRET` from your `.env`.
 }
 ```
 
-- **Behavior**:
-  - Starts workflow `creditSalaryWorkflow`
-  - Workflow ID: `salary-{userId}-{month}`, e.g. `salary-user-123-2026-03`
-  - On success:
+### Success Response (201)
 
 ```json
 {
   "success": true,
-  "workflowId": "salary-user-123-2026-03",
+  "workflowId": "salary-64f123abcde4567890fedcba-2026-03",
   "result": {
     "status": "CREDITED",
     "netSalary": 72000
@@ -131,15 +203,32 @@ Sign it with the `JWT_SECRET` from your `.env`.
 }
 ```
 
-If a salary for the same `userId` and `month` has already been processed, Temporal will reject a new workflow with the same ID and the API will respond with **409 Conflict**.
+### Error Responses
+- **400** — Validation error or workflow failure
+- **401** — Missing or invalid token
+- **403** — Insufficient permissions
+- **404** — User not found
+- **409** — Salary already credited for this user and month
+- **503** — Temporal server unavailable
 
-### 10. Sample curl Request
+---
 
-Assuming you have a JWT (with `role` = `HR` or `ADMIN`) stored in `TOKEN`:
+## Example: Credit Salary with curl
+
+1. Log in to get a token:
 
 ```bash
-TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"hr@example.com","password":"Password123!"}' \
+  | jq -r '.token')
+```
 
+2. Get a user ID from `/api/users` (or from the seeded data).
+
+3. Credit salary:
+
+```bash
 curl -X POST http://localhost:3000/api/payroll/credit-salary \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
@@ -154,4 +243,27 @@ curl -X POST http://localhost:3000/api/payroll/credit-salary \
   }'
 ```
 
+---
 
+## Workflow Details
+
+- **Workflow:** `creditSalaryWorkflow`
+- **Workflow ID:** `salary-{userId}-{month}`
+- **Task Queue:** `salary-queue`
+- **Activities:**
+  - `saveSalaryToMongoDB` — Persists salary to MongoDB; retries on transient DB errors
+  - `sendSalaryEmail` — Sends notification email; retries on SMTP failures (3 attempts, exponential backoff)
+
+---
+
+## npm Scripts
+
+| Command         | Description                         |
+|-----------------|-------------------------------------|
+| `npm run dev`   | Start API server with nodemon       |
+| `npm run start` | Start API server                    |
+| `npm run worker`| Start Temporal worker               |
+| `npm run seed`  | Seed users and sample salaries      |
+| `npm run docker:up`   | Start all services with Docker |
+| `npm run docker:down` | Stop Docker services         |
+| `npm run docker:logs` | Tail Docker logs             |

@@ -1,4 +1,16 @@
 services:
+  mongodb:
+    image: mongo:7
+    container_name: salary-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres:
     image: postgres:13
@@ -8,12 +20,20 @@ services:
       POSTGRES_USER: temporal
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   temporal:
     image: temporalio/auto-setup:latest
     container_name: temporal
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DB: postgres12
       DB_PORT: 5432
@@ -22,13 +42,87 @@ services:
       POSTGRES_SEEDS: postgres
     ports:
       - "7233:7233"
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   temporal-ui:
     image: temporalio/ui:latest
     container_name: temporal-ui
     depends_on:
-      - temporal
+      temporal:
+        condition: service_healthy
     environment:
       TEMPORAL_ADDRESS: temporal:7233
     ports:
       - "8233:8080"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
+  seed:
+    build: .
+    container_name: salary-seed
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/salary_credit_db
+    command: node src/seed.js
+    restart: "no"
+
+  api:
+    build: .
+    container_name: salary-api
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://mongodb:27017/salary_credit_db
+      TEMPORAL_ADDRESS: temporal:7233
+      JWT_SECRET: ${JWT_SECRET:-secret}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      EMAIL_FROM: hr@example.com
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: salary-worker
+    command: node src/temporal/worker.js
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/salary_credit_db
+      TEMPORAL_ADDRESS: temporal:7233
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      EMAIL_FROM: hr@example.com
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  postgres_data:
